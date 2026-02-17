@@ -1,0 +1,10 @@
+{
+  "name": "vercel-platform",
+  "version": "1.0.0",
+  "description": "Multi-app platform hosted on Vercel",
+  "private": true,
+  "workspaces": [
+    "dashboard",
+    "research-viewer"
+  ]
+}
