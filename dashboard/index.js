@@ -201,9 +201,14 @@ function getSessionTimeline(entries) {
 
 // API Endpoints
 app.get('/api/summary', async (req, res) => {
-  const entries = await parseTokenLogs();
-  const summary = calculateSummary(entries);
-  res.json(summary);
+  try {
+    const entries = await parseTokenLogs();
+    const summary = calculateSummary(entries);
+    res.json(summary);
+  } catch (err) {
+    console.error('Error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/api/cost-by-model', async (req, res) => {
