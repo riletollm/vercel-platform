@@ -17,6 +17,8 @@ app.use(express.static(path.join(__dirname, 'public')));
  * Fetch token logs from Supabase
  */
 async function parseTokenLogs() {
+  console.log('parseTokenLogs called. supabaseKey:', !!supabaseKey, 'supabase:', !!supabase);
+  
   if (!supabaseKey) {
     console.warn('Supabase not configured, returning empty logs');
     return [];
@@ -27,6 +29,8 @@ async function parseTokenLogs() {
       .from('token_logs')
       .select('*')
       .order('timestamp', { ascending: false });
+
+    console.log('Supabase response - error:', error, 'data count:', data ? data.length : 0);
 
     if (error) {
       console.error('Supabase fetch error:', error);
