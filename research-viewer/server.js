@@ -1,57 +1,57 @@
 const express = require('express');
-const fs = require('fs');
 const path = require('path');
 const { marked } = require('marked');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
-// Research directory
-const RESEARCH_DIR = path.join(__dirname, '..', 'research');
+// Supabase client
+const supabaseUrl = process.env.SUPABASE_URL || 'https://vcwkgxwnzayxhysfjeqw.supabase.co';
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const supabase = supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 // Middleware
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
 // API: Get all projects
-app.get('/api/projects', (req, res) => {
+app.get('/api/projects', async (req, res) => {
   try {
-    const projectDirs = fs.readdirSync(RESEARCH_DIR, { withFileTypes: true })
-      .filter(dirent => dirent.isDirectory())
-      .map(dirent => dirent.name);
+    if (!supabase) {
+      return res.json([]);
+    }
 
-    const projects = projectDirs.map(projectName => {
-      const projectPath = path.join(RESEARCH_DIR, projectName);
-      const indexPath = path.join(projectPath, 'INDEX.md');
-      
-      let overview = '';
-      if (fs.existsSync(indexPath)) {
-        const rawMarkdown = fs.readFileSync(indexPath, 'utf8');
-        // Render first 15 lines as HTML
-        const preview = rawMarkdown.split('\n').slice(0, 15).join('\n');
-        overview = marked(preview);
-      }
+    const { data: projects, error } = await supabase
+      .from('research_projects')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-      // Get all markdown files
-      const docs = fs.readdirSync(projectPath)
-        .filter(f => f.endsWith('.md'))
-        .sort()
-        .map(f => ({
-          name: f.replace('.md', ''),
-          file: f,
-          path: `${projectName}/${f}`
-        }));
+    if (error) {
+      console.error('Supabase error:', error);
+      return res.status(500).json({ error: error.message });
+    }
 
-      return {
-        id: projectName,
-        name: projectName.replace(/-/g, ' ').replace(/^\w/, c => c.toUpperCase()),
-        overview,
-        docCount: docs.length,
-        docs
-      };
-    });
+    // For each project, fetch its documents
+    const projectsWithDocs = await Promise.all(
+      (projects || []).map(async (project) => {
+        const { data: docs, error: docsError } = await supabase
+          .from('research_documents')
+          .select('doc_name, doc_file')
+          .eq('project_id', project.project_id)
+          .order('created_at', { ascending: false });
 
-    res.json(projects);
+        return {
+          id: project.project_id,
+          name: project.project_name,
+          overview: marked(project.overview || ''),
+          docCount: docs ? docs.length : 0,
+          docs: docs || [],
+        };
+      })
+    );
+
+    res.json(projectsWithDocs);
   } catch (error) {
     console.error('Error reading projects:', error);
     res.status(500).json({ error: error.message });
@@ -59,34 +59,33 @@ app.get('/api/projects', (req, res) => {
 });
 
 // API: Get project details
-app.get('/api/projects/:projectId', (req, res) => {
+app.get('/api/projects/:projectId', async (req, res) => {
   try {
-    const projectPath = path.join(RESEARCH_DIR, req.params.projectId);
-    
-    if (!fs.existsSync(projectPath)) {
+    if (!supabase) {
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    const docs = fs.readdirSync(projectPath)
-      .filter(f => f.endsWith('.md'))
-      .sort()
-      .map(f => ({
-        name: f.replace('.md', ''),
-        file: f,
-        path: `${req.params.projectId}/${f}`
-      }));
+    const { data: project, error: projError } = await supabase
+      .from('research_projects')
+      .select('*')
+      .eq('project_id', req.params.projectId)
+      .single();
 
-    const indexPath = path.join(projectPath, 'INDEX.md');
-    let overview = '';
-    if (fs.existsSync(indexPath)) {
-      overview = fs.readFileSync(indexPath, 'utf8');
+    if (projError || !project) {
+      return res.status(404).json({ error: 'Project not found' });
     }
 
+    const { data: docs, error: docsError } = await supabase
+      .from('research_documents')
+      .select('doc_name, doc_file')
+      .eq('project_id', req.params.projectId)
+      .order('created_at', { ascending: false });
+
     res.json({
-      id: req.params.projectId,
-      name: req.params.projectId.replace(/-/g, ' '),
-      overview: marked(overview),
-      docs
+      id: project.project_id,
+      name: project.project_name,
+      overview: marked(project.overview || ''),
+      docs: docs || [],
     });
   } catch (error) {
     console.error('Error reading project:', error);
@@ -95,29 +94,30 @@ app.get('/api/projects/:projectId', (req, res) => {
 });
 
 // API: Get document content
-app.get('/api/documents/:projectId/*', (req, res) => {
+app.get('/api/documents/:projectId/*', async (req, res) => {
   try {
-    const docPath = req.params[0]; // Everything after the first wildcard
-    const fullPath = path.join(RESEARCH_DIR, req.params.projectId, docPath + '.md');
-
-    // Security: prevent directory traversal
-    const normalizedPath = path.normalize(fullPath);
-    if (!normalizedPath.startsWith(path.normalize(RESEARCH_DIR))) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-
-    if (!fs.existsSync(fullPath)) {
+    if (!supabase) {
       return res.status(404).json({ error: 'Document not found' });
     }
 
-    const content = fs.readFileSync(fullPath, 'utf8');
-    const html = marked(content);
+    const docFile = req.params[0] + '.md';
+    const { data: doc, error } = await supabase
+      .from('research_documents')
+      .select('content, doc_name')
+      .eq('project_id', req.params.projectId)
+      .eq('doc_file', docFile)
+      .single();
 
+    if (error || !doc) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    const html = marked(doc.content || '');
     res.json({
-      name: path.basename(fullPath, '.md'),
+      name: doc.doc_name,
       content: html,
-      raw: content,
-      path: fullPath
+      raw: doc.content,
+      path: `${req.params.projectId}/${docFile}`,
     });
   } catch (error) {
     console.error('Error reading document:', error);
@@ -125,24 +125,29 @@ app.get('/api/documents/:projectId/*', (req, res) => {
   }
 });
 
-// API: Download document (Markdown)
-app.get('/api/download/:projectId/*', (req, res) => {
+// API: Get document as plain text (for download)
+app.get('/api/download/:projectId/*', async (req, res) => {
   try {
-    const docPath = req.params[0];
-    const fullPath = path.join(RESEARCH_DIR, req.params.projectId, docPath + '.md');
-
-    // Security: prevent directory traversal
-    const normalizedPath = path.normalize(fullPath);
-    if (!normalizedPath.startsWith(path.normalize(RESEARCH_DIR))) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-
-    if (!fs.existsSync(fullPath)) {
+    if (!supabase) {
       return res.status(404).json({ error: 'Document not found' });
     }
 
-    const fileName = path.basename(fullPath);
-    res.download(fullPath, fileName);
+    const docFile = req.params[0] + '.md';
+    const { data: doc, error } = await supabase
+      .from('research_documents')
+      .select('content, doc_name')
+      .eq('project_id', req.params.projectId)
+      .eq('doc_file', docFile)
+      .single();
+
+    if (error || !doc) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    const fileName = doc.doc_name + '.md';
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Type', 'text/markdown');
+    res.send(doc.content);
   } catch (error) {
     console.error('Error downloading document:', error);
     res.status(500).json({ error: error.message });
@@ -150,29 +155,29 @@ app.get('/api/download/:projectId/*', (req, res) => {
 });
 
 // API: Get document as PDF-ready HTML
-app.get('/api/download-pdf/:projectId/*', (req, res) => {
+app.get('/api/download-pdf/:projectId/*', async (req, res) => {
   try {
-    const docPath = req.params[0];
-    const fullPath = path.join(RESEARCH_DIR, req.params.projectId, docPath + '.md');
-
-    // Security: prevent directory traversal
-    const normalizedPath = path.normalize(fullPath);
-    if (!normalizedPath.startsWith(path.normalize(RESEARCH_DIR))) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-
-    if (!fs.existsSync(fullPath)) {
+    if (!supabase) {
       return res.status(404).json({ error: 'Document not found' });
     }
 
-    const markdown = fs.readFileSync(fullPath, 'utf8');
-    const html = marked(markdown);
-    const fileName = path.basename(fullPath, '.md');
+    const docFile = req.params[0] + '.md';
+    const { data: doc, error } = await supabase
+      .from('research_documents')
+      .select('content, doc_name')
+      .eq('project_id', req.params.projectId)
+      .eq('doc_file', docFile)
+      .single();
 
+    if (error || !doc) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    const html = marked(doc.content || '');
     res.json({
       html,
-      fileName,
-      title: fileName.replace(/-/g, ' ')
+      fileName: doc.doc_name,
+      title: doc.doc_name.replace(/-/g, ' '),
     });
   } catch (error) {
     console.error('Error generating PDF:', error);
@@ -180,39 +185,14 @@ app.get('/api/download-pdf/:projectId/*', (req, res) => {
   }
 });
 
-// API: Get document as plain text (for DOCX)
-app.get('/api/download-docx/:projectId/*', (req, res) => {
-  try {
-    const docPath = req.params[0];
-    const fullPath = path.join(RESEARCH_DIR, req.params.projectId, docPath + '.md');
-
-    // Security: prevent directory traversal
-    const normalizedPath = path.normalize(fullPath);
-    if (!normalizedPath.startsWith(path.normalize(RESEARCH_DIR))) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-
-    if (!fs.existsSync(fullPath)) {
-      return res.status(404).json({ error: 'Document not found' });
-    }
-
-    const markdown = fs.readFileSync(fullPath, 'utf8');
-    const fileName = path.basename(fullPath, '.md');
-
-    res.json({
-      text: markdown,
-      fileName,
-      title: fileName.replace(/-/g, ' ')
-    });
-  } catch (error) {
-    console.error('Error preparing DOCX:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // Serve index.html for all other routes (SPA)
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', supabaseConnected: !!supabase });
 });
 
 // Export for Vercel

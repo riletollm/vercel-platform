@@ -1,72 +1,56 @@
 const express = require('express');
-const fs = require('fs');
 const path = require('path');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
-const PORT = 3000;
-const LOG_FILE = '/root/.openclaw/workspace/token-logs.jsonl';
+const PORT = process.env.PORT || 3000;
+
+// Supabase client
+const supabaseUrl = process.env.SUPABASE_URL || 'https://vcwkgxwnzayxhysfjeqw.supabase.co';
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const supabase = supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
 
 /**
- * Parse token-logs.jsonl and return array of entries
- * Handles malformed lines gracefully
+ * Fetch token logs from Supabase
  */
-function parseTokenLogs() {
-  const entries = [];
-  try {
-    if (!fs.existsSync(LOG_FILE)) {
-      return entries;
-    }
-
-    const content = fs.readFileSync(LOG_FILE, 'utf-8');
-    const lines = content.split('\n');
-
-    for (const line of lines) {
-      // Skip empty lines and comments
-      if (!line.trim() || line.trim().startsWith('#')) {
-        continue;
-      }
-
-      try {
-        const entry = JSON.parse(line);
-        // Validate required fields
-        if (entry.timestamp && entry.cost !== undefined) {
-          entry.date = new Date(entry.timestamp);
-          entries.push(entry);
-        }
-      } catch (e) {
-        // Log parsing error but continue
-        console.warn(`Skipping malformed line: ${line.substring(0, 50)}...`);
-      }
-    }
-  } catch (err) {
-    console.error('Error reading token logs:', err);
+async function parseTokenLogs() {
+  if (!supabase) {
+    console.warn('Supabase not configured, returning empty logs');
+    return [];
   }
 
-  return entries;
+  try {
+    const { data, error } = await supabase
+      .from('token_logs')
+      .select('*')
+      .order('timestamp', { ascending: false });
+
+    if (error) {
+      console.error('Supabase fetch error:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error('Error fetching token logs:', err);
+    return [];
+  }
 }
 
-/**
- * Calculate days ago from a date
- */
 function daysAgo(date) {
   const now = new Date();
-  const diff = now - date;
+  const dateObj = new Date(date);
+  const diff = now - dateObj;
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
 
-/**
- * Filter entries by time range
- */
 function filterByDays(entries, days) {
-  return entries.filter(entry => daysAgo(entry.date) <= days);
+  return entries.filter(entry => daysAgo(entry.timestamp) <= days);
 }
 
-/**
- * Calculate summary stats
- */
 function calculateSummary(entries) {
   const now7day = filterByDays(entries, 7);
   const now30day = filterByDays(entries, 30);
@@ -76,15 +60,15 @@ function calculateSummary(entries) {
       return {
         totalCost: 0,
         totalTokens: 0,
-        totalSessions: new Set(arr.map(e => e.sessionKey)).size,
+        totalSessions: 0,
         avgCostPerSession: 0,
         entries: arr.length,
       };
     }
 
-    const totalCost = arr.reduce((sum, e) => sum + (e.cost || 0), 0);
+    const totalCost = arr.reduce((sum, e) => sum + (parseFloat(e.cost) || 0), 0);
     const totalTokens = arr.reduce((sum, e) => sum + (e.tokens_in || 0) + (e.tokens_out || 0), 0);
-    const sessions = new Set(arr.map(e => e.sessionKey)).size;
+    const sessions = new Set(arr.map(e => e.session_key)).size;
 
     return {
       totalCost: Math.round(totalCost * 10000) / 10000,
@@ -102,9 +86,6 @@ function calculateSummary(entries) {
   };
 }
 
-/**
- * Cost breakdown by model
- */
 function costByModel(entries) {
   const breakdown = {};
 
@@ -113,7 +94,7 @@ function costByModel(entries) {
     if (!breakdown[model]) {
       breakdown[model] = { cost: 0, tokens: 0, count: 0 };
     }
-    breakdown[model].cost += entry.cost || 0;
+    breakdown[model].cost += parseFloat(entry.cost) || 0;
     breakdown[model].tokens += (entry.tokens_in || 0) + (entry.tokens_out || 0);
     breakdown[model].count += 1;
   }
@@ -128,9 +109,6 @@ function costByModel(entries) {
     .sort((a, b) => b.cost - a.cost);
 }
 
-/**
- * Cost breakdown by tag
- */
 function costByTag(entries) {
   const breakdown = {};
 
@@ -139,7 +117,7 @@ function costByTag(entries) {
     if (!breakdown[tag]) {
       breakdown[tag] = { cost: 0, tokens: 0, count: 0 };
     }
-    breakdown[tag].cost += entry.cost || 0;
+    breakdown[tag].cost += parseFloat(entry.cost) || 0;
     breakdown[tag].tokens += (entry.tokens_in || 0) + (entry.tokens_out || 0);
     breakdown[tag].count += 1;
   }
@@ -154,14 +132,11 @@ function costByTag(entries) {
     .sort((a, b) => b.cost - a.cost);
 }
 
-/**
- * Get recent sessions with aggregated costs
- */
 function getRecentSessions(entries, limit = 20) {
   const sessionMap = {};
 
   for (const entry of entries) {
-    const key = entry.sessionKey || 'unknown';
+    const key = entry.session_key || 'unknown';
     if (!sessionMap[key]) {
       sessionMap[key] = {
         sessionKey: key,
@@ -172,7 +147,7 @@ function getRecentSessions(entries, limit = 20) {
         tags: new Set(),
       };
     }
-    sessionMap[key].cost += entry.cost || 0;
+    sessionMap[key].cost += parseFloat(entry.cost) || 0;
     sessionMap[key].tokens += (entry.tokens_in || 0) + (entry.tokens_out || 0);
     sessionMap[key].count += 1;
     if (entry.tag) sessionMap[key].tags.add(entry.tag);
@@ -191,26 +166,22 @@ function getRecentSessions(entries, limit = 20) {
     .slice(0, limit);
 }
 
-/**
- * Get per-session cost timeline (last 30 days)
- */
 function getSessionTimeline(entries) {
   const now30day = filterByDays(entries, 30);
   const timeline = {};
 
   for (const entry of now30day) {
-    const key = entry.sessionKey || 'unknown';
+    const key = entry.session_key || 'unknown';
     if (!timeline[key]) {
       timeline[key] = [];
     }
     timeline[key].push({
       timestamp: entry.timestamp,
-      cost: entry.cost || 0,
+      cost: parseFloat(entry.cost) || 0,
       cumulativeCost: 0,
     });
   }
 
-  // Calculate cumulative costs per session
   const result = [];
   for (const [sessionKey, entries] of Object.entries(timeline)) {
     entries.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
@@ -225,67 +196,47 @@ function getSessionTimeline(entries) {
     result.push({ sessionKey, points });
   }
 
-  return result.slice(0, 10); // Top 10 sessions
+  return result.slice(0, 10);
 }
 
 // API Endpoints
-
-/**
- * GET /api/summary
- * Returns 7-day, 30-day, and all-time summary stats
- */
-app.get('/api/summary', (req, res) => {
-  const entries = parseTokenLogs();
+app.get('/api/summary', async (req, res) => {
+  const entries = await parseTokenLogs();
   const summary = calculateSummary(entries);
   res.json(summary);
 });
 
-/**
- * GET /api/cost-by-model
- * Returns cost breakdown by model
- */
-app.get('/api/cost-by-model', (req, res) => {
-  const entries = parseTokenLogs();
+app.get('/api/cost-by-model', async (req, res) => {
+  const entries = await parseTokenLogs();
   const breakdown = costByModel(entries);
   res.json(breakdown);
 });
 
-/**
- * GET /api/cost-by-tag
- * Returns cost breakdown by tag
- */
-app.get('/api/cost-by-tag', (req, res) => {
-  const entries = parseTokenLogs();
+app.get('/api/cost-by-tag', async (req, res) => {
+  const entries = await parseTokenLogs();
   const breakdown = costByTag(entries);
   res.json(breakdown);
 });
 
-/**
- * GET /api/sessions
- * Returns recent sessions with aggregated costs
- */
-app.get('/api/sessions', (req, res) => {
-  const entries = parseTokenLogs();
+app.get('/api/sessions', async (req, res) => {
+  const entries = await parseTokenLogs();
   const sessions = getRecentSessions(entries);
   res.json(sessions);
 });
 
-/**
- * GET /api/timeline
- * Returns per-session cost timeline
- */
-app.get('/api/timeline', (req, res) => {
-  const entries = parseTokenLogs();
+app.get('/api/timeline', async (req, res) => {
+  const entries = await parseTokenLogs();
   const timeline = getSessionTimeline(entries);
   res.json(timeline);
 });
 
-/**
- * GET /
- * Serve dashboard index
- */
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', supabaseConnected: !!supabase });
 });
 
 // Export for Vercel
