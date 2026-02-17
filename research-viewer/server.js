@@ -18,7 +18,7 @@ app.use(express.json());
 // API: Get all projects
 app.get('/api/projects', async (req, res) => {
   try {
-    if (!supabase) {
+    if (!supabaseKey) {
       return res.json([]);
     }
 
@@ -32,21 +32,33 @@ app.get('/api/projects', async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
+    if (!projects || projects.length === 0) {
+      return res.json([]);
+    }
+
     // For each project, fetch its documents
     const projectsWithDocs = await Promise.all(
-      (projects || []).map(async (project) => {
+      projects.map(async (project) => {
         const { data: docs, error: docsError } = await supabase
           .from('research_documents')
           .select('doc_name, doc_file')
           .eq('project_id', project.project_id)
           .order('created_at', { ascending: false });
 
+        if (docsError) {
+          console.error('Error fetching docs:', docsError);
+        }
+
         return {
           id: project.project_id,
           name: project.project_name,
           overview: marked(project.overview || ''),
           docCount: docs ? docs.length : 0,
-          docs: docs || [],
+          docs: (docs || []).map(d => ({
+            name: d.doc_name,
+            file: d.doc_file,
+            path: `${project.project_id}/${d.doc_file}`
+          })),
         };
       })
     );
