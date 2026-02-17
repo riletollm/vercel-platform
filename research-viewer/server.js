@@ -60,6 +60,7 @@ app.get('/api/projects', async (req, res) => {
           docs: (docs || []).map(d => ({
             name: d.doc_name,
             file: d.doc_file,
+            path: `${project.project_id}/${d.doc_file}`,
           })),
         };
       })
@@ -98,7 +99,11 @@ app.get('/api/projects/:projectId', async (req, res) => {
       id: project.project_id,
       name: project.project_name,
       overview: marked(project.overview || ''),
-      docs: docs || [],
+      docs: (docs || []).map(d => ({
+        name: d.doc_name,
+        file: d.doc_file,
+        path: `${project.project_id}/${d.doc_file}`,
+      })),
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
