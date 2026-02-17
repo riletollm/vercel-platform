@@ -7,8 +7,8 @@ const PORT = process.env.PORT || 3000;
 
 // Supabase client
 const supabaseUrl = process.env.SUPABASE_URL || 'https://vcwkgxwnzayxhysfjeqw.supabase.co';
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-const supabase = supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZjd2tneHduemF5eGh5c2ZqZXF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDMxNDksImV4cCI6MjA4NjkxOTE0OX0.C9SuxTfSKM8NnPQ_oAn8McVnPIkB71L_evU_nFlBztg';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));

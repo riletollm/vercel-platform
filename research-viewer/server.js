@@ -6,13 +6,11 @@ const app = express();
 
 // Supabase setup
 const supabaseUrl = process.env.SUPABASE_URL || 'https://vcwkgxwnzayxhysfjeqw.supabase.co';
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZjd2tneHduemF5eGh5c2ZqZXd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDMxNDksImV4cCI6MjA4NjkxOTE0OX0.C9SuxTfSKM8NnPQ_oAn8McVnPIkB71L_evU_nFlBztg';
 
 let supabase = null;
 try {
-  if (supabaseKey) {
-    supabase = createClient(supabaseUrl, supabaseKey);
-  }
+  supabase = createClient(supabaseUrl, supabaseKey);
 } catch (err) {
   console.error('Failed to initialize Supabase:', err);
 }
