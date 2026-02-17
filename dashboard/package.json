@@ -1,0 +1,24 @@
+{
+  "name": "token-usage-dashboard",
+  "version": "1.0.0",
+  "description": "Real-time token usage analytics dashboard for OpenClaw",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "keywords": [
+    "analytics",
+    "dashboard",
+    "token-usage",
+    "openclaw"
+  ],
+  "author": "OpenClaw",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

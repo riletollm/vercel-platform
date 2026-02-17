@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Research Viewer</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Sidebar: Projects -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1>📚 Research Projects</h1>
+      </div>
+      <div class="projects-list" id="projectsList">
+        <!-- Projects will be loaded here -->
+        <div class="loading">Loading projects...</div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Projects Overview -->
+      <section id="projectsOverview" class="view-section">
+        <div class="overview-grid" id="overviewGrid">
+          <!-- Project cards will be loaded here -->
+          <div class="loading">Loading projects...</div>
+        </div>
+      </section>
+
+      <!-- Project Details -->
+      <section id="projectDetails" class="view-section hidden">
+        <div class="project-header">
+          <button class="btn-back" onclick="app.backToProjects()">← Back</button>
+          <h2 id="projectTitle"></h2>
+        </div>
+        <div id="projectOverview" class="project-overview"></div>
+        <div class="documents-grid" id="documentsGrid"></div>
+      </section>
+
+      <!-- Document Viewer -->
+      <section id="documentViewer" class="view-section hidden">
+        <div class="doc-header">
+          <button class="btn-back" onclick="app.backToProject()">← Back</button>
+          <div class="doc-title-section">
+            <h2 id="documentTitle"></h2>
+            <div class="doc-actions">
+              <div class="dropdown">
+                <button class="btn-download dropdown-toggle" onclick="app.toggleDownloadMenu()">⬇️ Download</button>
+                <div class="dropdown-menu" id="downloadMenu">
+                  <a href="#" onclick="app.downloadDocument('md'); return false;">📄 Markdown (.md)</a>
+                  <a href="#" onclick="app.downloadDocument('pdf'); return false;">📕 PDF (.pdf)</a>
+                  <a href="#" onclick="app.downloadDocument('docx'); return false;">📘 Word (.docx)</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="doc-content" id="documentContent"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
