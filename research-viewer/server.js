@@ -18,6 +18,20 @@ try {
 // Middleware
 app.use(express.json());
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({ 
+    service: 'Research Viewer API',
+    status: 'ok',
+    endpoints: {
+      projects: '/api/projects',
+      projectDetail: '/api/projects/:projectId',
+      documentContent: '/api/documents/:projectId/*',
+      download: '/api/download/:projectId/*'
+    }
+  });
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', supabaseConfigured: !!supabaseKey });
