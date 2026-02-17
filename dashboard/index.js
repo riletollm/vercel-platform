@@ -204,33 +204,29 @@ function getSessionTimeline(entries) {
 }
 
 // API Endpoints
-// Debug endpoint
-app.get('/api/debug', async (req, res) => {
-  const { data, error } = await supabase
-    .from('token_logs')
-    .select('*')
-    .order('timestamp', { ascending: false })
-    .limit(3);
-  
-  res.json({
-    supabaseConfigured: !!supabase,
-    supabaseUrl,
-    supabaseKeySet: !!supabaseKey,
-    rawData: { data, error },
-    env: {
-      URL: process.env.SUPABASE_URL ? 'set' : 'not set',
-      KEY: process.env.SUPABASE_ANON_KEY ? 'set' : 'not set'
-    }
-  });
-});
-
 app.get('/api/summary', async (req, res) => {
   try {
-    const entries = await parseTokenLogs();
-    const summary = calculateSummary(entries);
-    res.json(summary);
+    const { data, error } = await supabase
+      .from('token_logs')
+      .select('*')
+      .order('timestamp', { ascending: false });
+    
+    if (error) {
+      return res.json({ error: 'Supabase error: ' + error.message });
+    }
+    
+    if (!data || data.length === 0) {
+      return res.json({
+        week: { totalCost: 0, totalTokens: 0, totalSessions: 0, avgCostPerSession: 0, entries: 0 },
+        month: { totalCost: 0, totalTokens: 0, totalSessions: 0, avgCostPerSession: 0, entries: 0 },
+        allTime: { totalCost: 0, totalTokens: 0, totalSessions: 0, avgCostPerSession: 0, entries: 0 },
+        debug: { dataLength: 0, error: null, supabaseReady: !!supabase }
+      });
+    }
+    
+    const summary = calculateSummary(data);
+    res.json({ ...summary, debug: { dataLength: data.length } });
   } catch (err) {
-    console.error('Error:', err);
     res.status(500).json({ error: err.message });
   }
 });
