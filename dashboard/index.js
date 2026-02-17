@@ -17,7 +17,7 @@ app.use(express.static(path.join(__dirname, 'public')));
  * Fetch token logs from Supabase
  */
 async function parseTokenLogs() {
-  if (!supabase) {
+  if (!supabaseKey) {
     console.warn('Supabase not configured, returning empty logs');
     return [];
   }
@@ -231,12 +231,16 @@ app.get('/api/timeline', async (req, res) => {
 });
 
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  try {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  } catch (err) {
+    res.status(200).json({ message: 'Dashboard running' });
+  }
 });
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', supabaseConnected: !!supabase });
+  res.json({ status: 'ok', supabaseConfigured: !!supabaseKey });
 });
 
 // Export for Vercel
