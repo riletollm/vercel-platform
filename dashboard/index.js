@@ -206,10 +206,17 @@ function getSessionTimeline(entries) {
 // API Endpoints
 // Debug endpoint
 app.get('/api/debug', async (req, res) => {
+  const { data, error } = await supabase
+    .from('token_logs')
+    .select('*')
+    .order('timestamp', { ascending: false })
+    .limit(3);
+  
   res.json({
     supabaseConfigured: !!supabase,
     supabaseUrl,
     supabaseKeySet: !!supabaseKey,
+    rawData: { data, error },
     env: {
       URL: process.env.SUPABASE_URL ? 'set' : 'not set',
       KEY: process.env.SUPABASE_ANON_KEY ? 'set' : 'not set'
