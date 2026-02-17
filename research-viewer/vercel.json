@@ -1,6 +1,16 @@
 {
-  "buildCommand": "npm install",
-  "env": {
-    "NODE_ENV": "production"
+  "version": 2,
+  "public": "public",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api"
+    }
+  ],
+  "functions": {
+    "api/index.js": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
   }
 }
