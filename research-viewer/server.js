@@ -12,7 +12,10 @@ const supabaseKey = process.env.SUPABASE_ANON_KEY;
 const supabase = supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 // Middleware
-app.use(express.static(path.join(__dirname, 'public')));
+const publicDir = path.join(__dirname, 'public');
+if (fs.existsSync(publicDir)) {
+  app.use(express.static(publicDir));
+}
 app.use(express.json());
 
 // API: Get all projects
