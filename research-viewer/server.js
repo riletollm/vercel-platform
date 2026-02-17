@@ -1,35 +1,31 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
 const { marked } = require('marked');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 
-// Supabase client
+// Supabase setup
 const supabaseUrl = process.env.SUPABASE_URL || 'https://vcwkgxwnzayxhysfjeqw.supabase.co';
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
 let supabase = null;
-if (supabaseKey) {
-  supabase = createClient(supabaseUrl, supabaseKey);
+try {
+  if (supabaseKey) {
+    supabase = createClient(supabaseUrl, supabaseKey);
+  }
+} catch (err) {
+  console.error('Failed to initialize Supabase:', err);
 }
 
 // Middleware
-const publicDir = path.join(__dirname, 'public');
-if (fs.existsSync(publicDir)) {
-  app.use(express.static(publicDir));
-}
 app.use(express.json());
-
-// ===== API ROUTES (MUST BE BEFORE CATCH-ALL) =====
 
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', supabaseConfigured: !!supabaseKey });
 });
 
-// API: Get all projects
+// Get all projects
 app.get('/api/projects', async (req, res) => {
   try {
     if (!supabase) {
@@ -41,16 +37,12 @@ app.get('/api/projects', async (req, res) => {
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Supabase error:', error);
-      return res.status(500).json({ error: error.message });
-    }
+    if (error) throw error;
 
     if (!projects || projects.length === 0) {
       return res.json([]);
     }
 
-    // For each project, fetch its documents
     const projectsWithDocs = await Promise.all(
       projects.map(async (project) => {
         const { data: docs } = await supabase
@@ -67,7 +59,6 @@ app.get('/api/projects', async (req, res) => {
           docs: (docs || []).map(d => ({
             name: d.doc_name,
             file: d.doc_file,
-            path: `${project.project_id}/${d.doc_file}`
           })),
         };
       })
@@ -75,16 +66,16 @@ app.get('/api/projects', async (req, res) => {
 
     res.json(projectsWithDocs);
   } catch (error) {
-    console.error('Error reading projects:', error);
+    console.error('Error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// API: Get project details
+// Get project details
 app.get('/api/projects/:projectId', async (req, res) => {
   try {
     if (!supabase) {
-      return res.status(404).json({ error: 'Project not found' });
+      return res.status(404).json({ error: 'Not found' });
     }
 
     const { data: project, error } = await supabase
@@ -94,36 +85,30 @@ app.get('/api/projects/:projectId', async (req, res) => {
       .single();
 
     if (error || !project) {
-      return res.status(404).json({ error: 'Project not found' });
+      return res.status(404).json({ error: 'Not found' });
     }
 
     const { data: docs } = await supabase
       .from('research_documents')
       .select('doc_name, doc_file')
-      .eq('project_id', req.params.projectId)
-      .order('created_at', { ascending: false });
+      .eq('project_id', req.params.projectId);
 
     res.json({
       id: project.project_id,
       name: project.project_name,
       overview: marked(project.overview || ''),
-      docs: (docs || []).map(d => ({
-        name: d.doc_name,
-        file: d.doc_file,
-        path: `${project.project_id}/${d.doc_file}`
-      })),
+      docs: docs || [],
     });
   } catch (error) {
-    console.error('Error reading project:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// API: Get document content
+// Get document content
 app.get('/api/documents/:projectId/*', async (req, res) => {
   try {
     if (!supabase) {
-      return res.status(404).json({ error: 'Document not found' });
+      return res.status(404).json({ error: 'Not found' });
     }
 
     const docFile = req.params[0] + '.md';
@@ -135,27 +120,24 @@ app.get('/api/documents/:projectId/*', async (req, res) => {
       .single();
 
     if (error || !doc) {
-      return res.status(404).json({ error: 'Document not found' });
+      return res.status(404).json({ error: 'Not found' });
     }
 
-    const html = marked(doc.content || '');
     res.json({
       name: doc.doc_name,
-      content: html,
+      content: marked(doc.content || ''),
       raw: doc.content,
-      path: `${req.params.projectId}/${docFile}`,
     });
   } catch (error) {
-    console.error('Error reading document:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// API: Download document (Markdown)
+// Download document
 app.get('/api/download/:projectId/*', async (req, res) => {
   try {
     if (!supabase) {
-      return res.status(404).json({ error: 'Document not found' });
+      return res.status(404).json({ error: 'Not found' });
     }
 
     const docFile = req.params[0] + '.md';
@@ -167,30 +149,16 @@ app.get('/api/download/:projectId/*', async (req, res) => {
       .single();
 
     if (error || !doc) {
-      return res.status(404).json({ error: 'Document not found' });
+      return res.status(404).json({ error: 'Not found' });
     }
 
-    const fileName = doc.doc_name + '.md';
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${doc.doc_name}.md"`);
     res.setHeader('Content-Type', 'text/markdown');
     res.send(doc.content);
   } catch (error) {
-    console.error('Error downloading document:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// ===== CATCH-ALL ROUTE (MUST BE LAST) =====
-
-// Serve index.html for all other routes (SPA)
-app.get('*', (req, res) => {
-  const indexPath = path.join(__dirname, 'public', 'index.html');
-  if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else {
-    res.status(200).json({ message: 'Research Viewer running' });
-  }
-});
-
-// Export for Vercel
+// Export
 module.exports = app;
