@@ -1,4 +1,5 @@
 const express = require('express');
+const fs = require('fs');
 const path = require('path');
 const { marked } = require('marked');
 const { createClient } = require('@supabase/supabase-js');
@@ -200,14 +201,19 @@ app.get('/api/download-pdf/:projectId/*', async (req, res) => {
   }
 });
 
-// Serve index.html for all other routes (SPA)
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', supabaseConnected: !!supabase });
+  res.json({ status: 'ok', supabaseConfigured: !!supabaseKey });
+});
+
+// Serve index.html for all other routes (SPA)
+app.get('*', (req, res) => {
+  const indexPath = path.join(__dirname, 'public', 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(200).json({ message: 'Research Viewer running' });
+  }
 });
 
 // Export for Vercel
