@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const { marked } = require('marked');
 const { createClient } = require('@supabase/supabase-js');
 
@@ -16,21 +17,9 @@ try {
 }
 
 // Middleware
+const publicPath = path.join(__dirname, 'public');
+app.use(express.static(publicPath));
 app.use(express.json());
-
-// Root endpoint
-app.get('/', (req, res) => {
-  res.json({ 
-    service: 'Research Viewer API',
-    status: 'ok',
-    endpoints: {
-      projects: '/api/projects',
-      projectDetail: '/api/projects/:projectId',
-      documentContent: '/api/documents/:projectId/*',
-      download: '/api/download/:projectId/*'
-    }
-  });
-});
 
 // Health check
 app.get('/health', (req, res) => {
