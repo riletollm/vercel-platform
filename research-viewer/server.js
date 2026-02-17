@@ -215,7 +215,5 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`📚 Research Viewer running on http://localhost:${PORT}`);
-  console.log(`📁 Research directory: ${RESEARCH_DIR}`);
-});
+// Export for Vercel
+module.exports = app;

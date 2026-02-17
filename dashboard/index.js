@@ -288,8 +288,5 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`📊 Token Usage Dashboard running at http://localhost:${PORT}`);
-  console.log(`📁 Reading logs from: ${LOG_FILE}`);
-});
+// Export for Vercel
+module.exports = app;
