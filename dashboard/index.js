@@ -204,6 +204,19 @@ function getSessionTimeline(entries) {
 }
 
 // API Endpoints
+// Debug endpoint
+app.get('/api/debug', async (req, res) => {
+  res.json({
+    supabaseConfigured: !!supabase,
+    supabaseUrl,
+    supabaseKeySet: !!supabaseKey,
+    env: {
+      URL: process.env.SUPABASE_URL ? 'set' : 'not set',
+      KEY: process.env.SUPABASE_ANON_KEY ? 'set' : 'not set'
+    }
+  });
+});
+
 app.get('/api/summary', async (req, res) => {
   try {
     const entries = await parseTokenLogs();
@@ -249,7 +262,16 @@ app.get('/', (req, res) => {
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', supabaseConfigured: !!supabaseKey });
+  res.json({ 
+    status: 'ok', 
+    supabaseConfigured: !!supabaseKey,
+    supabaseUrl: supabaseUrl ? 'set' : 'not set',
+    supabaseKey: supabaseKey ? 'set' : 'not set',
+    env: {
+      SUPABASE_URL: process.env.SUPABASE_URL ? 'set' : 'not set',
+      SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY ? 'set' : 'not set'
+    }
+  });
 });
 
 // Export for Vercel
