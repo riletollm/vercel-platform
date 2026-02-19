@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const { marked } = require('marked');
 const { createClient } = require('@supabase/supabase-js');
+const seedData = require('./seedData.js');
 
 const app = express();
 
@@ -26,15 +27,6 @@ app.use(express.json());
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', supabaseConfigured: !!supabaseKey });
 });
-
-// Fallback seed data (loaded from local files)
-const seedData = (() => {
-  try {
-    return JSON.parse(fs.readFileSync(path.join(__dirname, 'data/lms-disruptor.json'), 'utf-8'));
-  } catch (e) {
-    return null;
-  }
-})();
 
 // Get all projects
 app.get('/api/projects', async (req, res) => {
