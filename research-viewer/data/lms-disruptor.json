@@ -1,0 +1,34 @@
+{
+  "project": {
+    "project_id": "lms-disruptor",
+    "project_name": "LMS Disruptor: Conversational Learning Platform",
+    "overview": "A disruptive learning platform designed to replace the LMS paradigm. Building a conversational, mobile-native experience for SSEN Cable Jointer (ST1332) training that reduces time-to-competency from 12-18 weeks to 9-12 weeks. Three integrated layers: TikTok-like app, WhatsApp PA coach, and silent competency engine."
+  },
+  "documents": [
+    {
+      "doc_name": "Vision",
+      "doc_file": "VISION.md",
+      "path": "lms-disruptor/VISION.md"
+    },
+    {
+      "doc_name": "Learner Journey Map",
+      "doc_file": "LEARNER_JOURNEY.md",
+      "path": "lms-disruptor/LEARNER_JOURNEY.md"
+    },
+    {
+      "doc_name": "Technical Architecture",
+      "doc_file": "ARCHITECTURE.md",
+      "path": "lms-disruptor/ARCHITECTURE.md"
+    },
+    {
+      "doc_name": "MVP Roadmap",
+      "doc_file": "MVP_ROADMAP.md",
+      "path": "lms-disruptor/MVP_ROADMAP.md"
+    },
+    {
+      "doc_name": "Project Overview",
+      "doc_file": "README.md",
+      "path": "lms-disruptor/README.md"
+    }
+  ]
+}
