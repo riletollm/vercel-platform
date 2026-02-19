@@ -41,7 +41,7 @@ app.get('/api/projects', async (req, res) => {
   try {
     let projects = [];
 
-    // Try Supabase first
+    // Get Supabase data
     if (supabase) {
       const { data: dbProjects, error } = await supabase
         .from('research_projects')
@@ -53,9 +53,9 @@ app.get('/api/projects', async (req, res) => {
       }
     }
 
-    // Fallback to seed data if Supabase is empty or unavailable
-    if (projects.length === 0 && seedData) {
-      projects = [seedData.project];
+    // Always include seed data (if it's not already in the list)
+    if (seedData && !projects.find(p => p.project_id === seedData.project.project_id)) {
+      projects = [seedData.project, ...projects];
     }
 
     if (!projects || projects.length === 0) {
