@@ -3,7 +3,6 @@ const path = require('path');
 const fs = require('fs');
 const { marked } = require('marked');
 const { createClient } = require('@supabase/supabase-js');
-const seedData = require('./seedData.js');
 
 const app = express();
 
@@ -18,6 +17,52 @@ try {
   console.error('Failed to initialize Supabase:', err);
 }
 
+// Inline seed data - LMS Disruptor project
+const seedData = {
+  project: {
+    project_id: 'lms-disruptor',
+    project_name: 'LMS Disruptor: Conversational Learning Platform',
+    overview: 'A disruptive learning platform designed to replace the LMS paradigm. Building a conversational, mobile-native experience for SSEN Cable Jointer (ST1332) training that reduces time-to-competency from 12-18 weeks to 9-12 weeks. Three integrated layers: TikTok-like app, WhatsApp PA coach, and silent competency engine.'
+  },
+  documents: [
+    {
+      doc_name: 'Vision',
+      doc_file: 'VISION.md',
+      content: 'See seedData.js or repository for full content'
+    },
+    {
+      doc_name: 'Project Overview',
+      doc_file: 'README.md',
+      content: 'See seedData.js or repository for full content'
+    },
+    {
+      doc_name: 'Learner Journey Map',
+      doc_file: 'LEARNER_JOURNEY.md',
+      content: 'See seedData.js or repository for full content'
+    },
+    {
+      doc_name: 'Technical Architecture',
+      doc_file: 'ARCHITECTURE.md',
+      content: 'See seedData.js or repository for full content'
+    },
+    {
+      doc_name: 'MVP Roadmap',
+      doc_file: 'MVP_ROADMAP.md',
+      content: 'See seedData.js or repository for full content'
+    }
+  ]
+};
+
+// Try to load actual content from seedData module
+try {
+  const importedSeedData = require('./seedData.js');
+  if (importedSeedData && importedSeedData.documents) {
+    seedData.documents = importedSeedData.documents;
+  }
+} catch (e) {
+  console.log('seedData.js not available, using inline fallback');
+}
+
 // Middleware
 const publicPath = path.join(__dirname, 'public');
 app.use(express.static(publicPath));
@@ -25,7 +70,7 @@ app.use(express.json());
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', supabaseConfigured: !!supabaseKey });
+  res.json({ status: 'ok', supabaseConfigured: !!supabaseKey, hasSeeds: !!seedData.project });
 });
 
 // Get all projects
