@@ -1,30 +1,28 @@
 # Vercel Platform
 
-A monorepo hosting multiple web applications deployed via Vercel.
+Monorepo for OpenClaw web applications deployed to Vercel.
 
 ## Apps
 
-- **token-analysis-dashboard** — Token usage analysis dashboard
-- **research-viewer** — Research results frontend
-
-## Structure
-
-```
-vercel-platform/
-├── dashboard/              # Token analysis dashboard
-├── research-viewer/        # Research frontend
-├── vercel.json            # Vercel monorepo config
-└── README.md
-```
+1. **Dashboard** (`/dashboard`) - Token usage analytics
+2. **Research Viewer** (`/research-viewer`) - Research document browser
+3. **Memory Dashboard** (`/memory-dashboard`) - Memory system health metrics
 
 ## Deployment
 
-Both apps are independently deployable via Vercel. Push to `main` to trigger builds.
+Auto-deploys to Vercel on push to `main` branch via GitHub Actions.
 
-## Environment Variables
+**Live URLs:**
+- Token Analysis Dashboard: https://token-analysis-dashboard-letos-projects-a7d7dbf1.vercel.app
+- Research Viewer: https://research-viewer-letos-projects-a7d7dbf1.vercel.app
+- Memory Dashboard: _(assigned after first deployment)_
 
-Stored in Vercel project settings (encrypted). Never commit `.env` files.
+## Local Development
 
-## Auth
+Each app runs independently:
 
-Centralized Supabase auth for all apps.
+```bash
+cd dashboard && npm install && npm run dev
+cd research-viewer && npm install && npm run dev
+cd memory-dashboard && npm install && npm run dev
+```

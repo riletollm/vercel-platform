@@ -1,0 +1,25 @@
+{
+  "name": "memory-dashboard",
+  "version": "1.0.0",
+  "description": "Memory system health dashboard for OpenClaw - compression ratios, token usage, heartbeat success rates",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "build": "npm install"
+  },
+  "keywords": [
+    "memory",
+    "dashboard",
+    "health",
+    "openclaw"
+  ],
+  "author": "OpenClaw",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

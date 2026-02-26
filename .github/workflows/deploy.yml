@@ -26,3 +26,8 @@ jobs:
           cd research-viewer
           vercel deploy --token $VERCEL_TOKEN --prod
           cd ..
+          
+          # Deploy memory-dashboard
+          cd memory-dashboard
+          vercel deploy --token $VERCEL_TOKEN --prod
+          cd ..
